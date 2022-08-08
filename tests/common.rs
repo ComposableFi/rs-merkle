@@ -1,12 +1,9 @@
-use rayon::prelude::*;
-use rs_merkle::algorithms::Hash;
-use rs_merkle::algorithms::HashType;
 use rs_merkle::{Hasher, MerkleTree};
 
-pub struct TestData {
+pub struct TestData<T: Hasher> {
     pub leaf_values: Vec<String>,
     pub expected_root_hex: String,
-    pub leaf_hashes: Vec<[u8; 32]>,
+    pub leaf_hashes: Vec<T::Hash>,
 }
 
 fn combine<T: Clone>(active: Vec<T>, rest: Vec<T>, mut combinations: Vec<Vec<T>>) -> Vec<Vec<T>> {
@@ -35,13 +32,10 @@ pub fn combinations<T: Clone>(vec: Vec<T>) -> Vec<Vec<T>> {
     combine(Vec::new(), vec, Vec::new())
 }
 
-pub fn setup(algo_type: HashType) -> TestData {
+pub fn setup<T: Hasher>() -> TestData<T> {
     let leaf_values = ["a", "b", "c", "d", "e", "f"];
     let expected_root_hex = "1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2";
-    let leaf_hashes = leaf_values
-        .iter()
-        .map(|x| Hash::hash(x.as_bytes(), algo_type.clone()))
-        .collect();
+    let leaf_hashes: Vec<T::Hash> = leaf_values.iter().map(|x| T::hash(x.as_bytes())).collect();
 
     TestData {
         leaf_values: leaf_values.iter().cloned().map(String::from).collect(),
@@ -51,19 +45,19 @@ pub fn setup(algo_type: HashType) -> TestData {
 }
 
 #[derive(Clone)]
-pub struct ProofTestCases {
-    pub merkle_tree: MerkleTree<Hash>,
-    pub cases: Vec<MerkleProofTestCase>,
+pub struct ProofTestCases<T: Hasher> {
+    pub merkle_tree: MerkleTree<T>,
+    pub cases: Vec<MerkleProofTestCase<T>>,
 }
 
 #[derive(Clone)]
-pub struct MerkleProofTestCase {
+pub struct MerkleProofTestCase<T: Hasher> {
     pub leaf_indices_to_prove: Vec<usize>,
-    pub leaf_hashes_to_prove: Vec<[u8; 32]>,
+    pub leaf_hashes_to_prove: Vec<T::Hash>,
 }
 
-impl MerkleProofTestCase {
-    fn new(leaf_hashes_to_prove: Vec<[u8; 32]>, leaf_indices_to_prove: Vec<usize>) -> Self {
+impl<T: Hasher> MerkleProofTestCase<T> {
+    fn new(leaf_hashes_to_prove: Vec<T::Hash>, leaf_indices_to_prove: Vec<usize>) -> Self {
         Self {
             // title: format!("from a tree of {} elements for {} elements at positions {:?}", leaf_hashes.len(), leaf_indices_to_prove.len(), leaf_indices_to_prove),
             leaf_hashes_to_prove,
@@ -72,36 +66,36 @@ impl MerkleProofTestCase {
     }
 }
 
-pub fn setup_proof_test_cases(algo_type: HashType) -> Vec<ProofTestCases> {
+pub fn setup_proof_test_cases<T: Hasher>() -> Vec<ProofTestCases<T>> {
     let max_case = [
         "a", "b", "c", "d", "e", "f", "g", "h", "k", "l", "m", "o", "p", "r", "s",
     ];
 
     max_case
-        .par_iter()
+        .iter()
         .enumerate()
         .map(|(index, _)| {
             let tree_elements = max_case.get(0..index + 1).unwrap();
 
-            let leaves: Vec<[u8; 32]> = tree_elements
+            let leaves: Vec<T::Hash> = tree_elements
                 .iter()
-                .map(|x| Hash::hash(x.as_bytes(), algo_type.clone()))
+                .map(|x| T::hash(x.as_bytes()))
                 .collect();
 
-            let tuples: Vec<(usize, [u8; 32])> = leaves.iter().cloned().enumerate().collect();
+            let tuples: Vec<(usize, T::Hash)> = leaves.iter().cloned().enumerate().collect();
 
             let possible_proof_elements_combinations = combinations(tuples);
 
-            let cases: Vec<MerkleProofTestCase> = possible_proof_elements_combinations
-                .par_iter()
+            let cases: Vec<MerkleProofTestCase<T>> = possible_proof_elements_combinations
+                .iter()
                 .cloned()
                 .map(|proof_elements| {
-                    let (indices, leaves2): (Vec<usize>, Vec<[u8; 32]>) =
+                    let (indices, leaves2): (Vec<usize>, Vec<T::Hash>) =
                         proof_elements.iter().cloned().unzip();
                     MerkleProofTestCase::new(leaves2, indices)
                 })
                 .collect();
-            let merkle_tree = MerkleTree::<Hash>::from_leaves(&leaves);
+            let merkle_tree = MerkleTree::<T>::from_leaves(&leaves);
 
             let case = ProofTestCases { merkle_tree, cases };
             case

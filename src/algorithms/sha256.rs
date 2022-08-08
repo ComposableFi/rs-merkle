@@ -1,4 +1,3 @@
-use crate::algorithms::HashType;
 use crate::{prelude::*, Hasher};
 use sha2::{digest::FixedOutput, Digest, Sha256};
 
@@ -44,7 +43,7 @@ impl Sha256Algorithm {
 impl Hasher for Sha256Algorithm {
     type Hash = [u8; 32];
 
-    fn hash(data: &[u8], _hash_type: HashType) -> [u8; 32] {
+    fn hash(data: &[u8]) -> [u8; 32] {
         Sha256Algorithm::hash(data)
     }
 }

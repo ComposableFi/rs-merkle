@@ -2,8 +2,6 @@ use crate::prelude::*;
 use core::convert::TryFrom;
 use core::mem;
 
-use crate::algorithms::HashType;
-
 /// Hasher is a trait used to provide a hashing algorithm for the library.
 ///
 /// # Example
@@ -11,7 +9,7 @@ use crate::algorithms::HashType;
 /// This example shows how to implement the sha256 algorithm
 ///
 /// ```
-/// use rs_merkle::{algorithms::HashType, Hasher};
+/// use rs_merkle::{Hasher};
 /// use sha2::{digest::FixedOutput, Digest, Sha256};
 ///
 /// #[derive(Clone)]
@@ -28,7 +26,7 @@ use crate::algorithms::HashType;
 /// impl Hasher for Sha256Algorithm {
 ///     type Hash = [u8; 32];
 ///
-///     fn hash(data: &[u8], _hash_type: HashType) -> [u8; 32] {
+///     fn hash(data: &[u8]) -> [u8; 32] {
 ///         Sha256Algorithm::hash(data)
 ///     }
 /// }
@@ -50,7 +48,7 @@ pub trait Hasher: Clone {
 
     /// This associated function takes a slice of bytes and returns a hash of it.
     /// Used by `concat_and_hash` function to build a tree from concatenated hashes
-    fn hash(data: &[u8], hash_type: HashType) -> Self::Hash;
+    fn hash(data: &[u8]) -> Self::Hash;
 
     /// Used by [`MerkleTree`] and [`PartialTree`] when calculating the root.
     /// The provided default implementation propagates the left node if it doesn't
@@ -70,7 +68,7 @@ pub trait Hasher: Clone {
             Some(right_node) => {
                 let mut right_node_clone: Vec<u8> = (*right_node).into();
                 concatenated.append(&mut right_node_clone);
-                Self::hash(&concatenated, HashType::Keccak256)
+                Self::hash(&concatenated)
             }
             None => *left,
         }

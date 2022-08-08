@@ -1,4 +1,3 @@
-use crate::algorithms::HashType;
 use crate::{prelude::*, Hasher};
 use sha3::{digest::FixedOutput, Digest, Keccak256};
 
@@ -44,7 +43,7 @@ impl Keccak256Algorithm {
 impl Hasher for Keccak256Algorithm {
     type Hash = [u8; 32];
 
-    fn hash(data: &[u8], _hash_type: HashType) -> [u8; 32] {
+    fn hash(data: &[u8]) -> [u8; 32] {
         Keccak256Algorithm::hash(data)
     }
 }
