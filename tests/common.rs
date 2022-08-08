@@ -1,5 +1,7 @@
 use rayon::prelude::*;
-use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
+use rs_merkle::algorithms::Hash;
+use rs_merkle::algorithms::HashType;
+use rs_merkle::{Hasher, MerkleTree};
 
 pub struct TestData {
     pub leaf_values: Vec<String>,
@@ -33,12 +35,12 @@ pub fn combinations<T: Clone>(vec: Vec<T>) -> Vec<Vec<T>> {
     combine(Vec::new(), vec, Vec::new())
 }
 
-pub fn setup() -> TestData {
+pub fn setup(algo_type: HashType) -> TestData {
     let leaf_values = ["a", "b", "c", "d", "e", "f"];
     let expected_root_hex = "1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2";
     let leaf_hashes = leaf_values
         .iter()
-        .map(|x| Sha256::hash(x.as_bytes()))
+        .map(|x| Hash::hash(x.as_bytes(), algo_type.clone()))
         .collect();
 
     TestData {
@@ -50,7 +52,7 @@ pub fn setup() -> TestData {
 
 #[derive(Clone)]
 pub struct ProofTestCases {
-    pub merkle_tree: MerkleTree<Sha256>,
+    pub merkle_tree: MerkleTree<Hash>,
     pub cases: Vec<MerkleProofTestCase>,
 }
 
@@ -70,7 +72,7 @@ impl MerkleProofTestCase {
     }
 }
 
-pub fn setup_proof_test_cases() -> Vec<ProofTestCases> {
+pub fn setup_proof_test_cases(algo_type: HashType) -> Vec<ProofTestCases> {
     let max_case = [
         "a", "b", "c", "d", "e", "f", "g", "h", "k", "l", "m", "o", "p", "r", "s",
     ];
@@ -83,7 +85,7 @@ pub fn setup_proof_test_cases() -> Vec<ProofTestCases> {
 
             let leaves: Vec<[u8; 32]> = tree_elements
                 .iter()
-                .map(|x| Sha256::hash(x.as_bytes()))
+                .map(|x| Hash::hash(x.as_bytes(), algo_type.clone()))
                 .collect();
 
             let tuples: Vec<(usize, [u8; 32])> = leaves.iter().cloned().enumerate().collect();
@@ -99,7 +101,7 @@ pub fn setup_proof_test_cases() -> Vec<ProofTestCases> {
                     MerkleProofTestCase::new(leaves2, indices)
                 })
                 .collect();
-            let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+            let merkle_tree = MerkleTree::<Hash>::from_leaves(&leaves);
 
             let case = ProofTestCases { merkle_tree, cases };
             case

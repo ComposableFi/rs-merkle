@@ -3,12 +3,13 @@ mod common;
 pub mod root {
     use crate::common;
     use rayon::prelude::*;
-    use rs_merkle::{algorithms::Sha256, Error, Hasher, MerkleTree};
+    use rs_merkle::algorithms::HashType;
+    use rs_merkle::{algorithms::Sha256, Error, MerkleTree};
     use std::time::Instant;
 
     #[test]
     pub fn should_return_a_correct_root() -> Result<(), Error> {
-        let test_data = common::setup();
+        let test_data = common::setup(HashType::Sha256);
         let expected_root = test_data.expected_root_hex.clone();
         let leaf_hashes = &test_data.leaf_hashes;
         let indices_to_prove = vec![3, 4];
@@ -29,7 +30,7 @@ pub mod root {
         assert_eq!(extracted_root, expected_root.to_string());
 
         let test_preparation_started = Instant::now();
-        let test_cases = common::setup_proof_test_cases();
+        let test_cases = common::setup_proof_test_cases(HashType::Sha256);
         println!(
             "Preparing test cases took {:.2}s",
             test_preparation_started.elapsed().as_secs_f32()
@@ -84,6 +85,7 @@ pub mod root {
 
 pub mod to_bytes {
     use crate::common;
+    use rs_merkle::algorithms::HashType;
     use rs_merkle::{algorithms::Sha256, MerkleTree};
 
     #[test]
@@ -97,7 +99,7 @@ pub mod to_bytes {
             249, 74,
         ];
 
-        let test_data = common::setup();
+        let test_data = common::setup(HashType::Sha256);
         let indices_to_prove = vec![3, 4];
         let merkle_tree = MerkleTree::<Sha256>::from_leaves(&test_data.leaf_hashes);
         let proof = merkle_tree.proof(&indices_to_prove);
@@ -109,7 +111,6 @@ pub mod to_bytes {
 }
 
 pub mod from_bytes {
-    use crate::common;
     use rs_merkle::{algorithms::Sha256, Error, MerkleProof};
 
     #[test]

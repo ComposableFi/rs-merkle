@@ -2,11 +2,12 @@ mod common;
 
 pub mod root {
     use crate::common;
+    use rs_merkle::algorithms::HashType;
     use rs_merkle::{algorithms::Sha256, MerkleTree};
 
     #[test]
     pub fn should_return_a_correct_root() {
-        let test_data = common::setup();
+        let test_data = common::setup(HashType::Sha256);
 
         let merkle_tree = MerkleTree::<Sha256>::from_leaves(&test_data.leaf_hashes);
 
@@ -19,11 +20,12 @@ pub mod root {
 
 pub mod tree_depth {
     use crate::common;
+    use rs_merkle::algorithms::HashType;
     use rs_merkle::{algorithms::Sha256, MerkleTree};
 
     #[test]
     pub fn should_return_a_correct_tree_depth() {
-        let test_data = common::setup();
+        let test_data = common::setup(HashType::Sha256);
 
         let merkle_tree = MerkleTree::<Sha256>::from_leaves(&test_data.leaf_hashes);
 
@@ -34,11 +36,12 @@ pub mod tree_depth {
 
 pub mod proof {
     use crate::common;
+    use rs_merkle::algorithms::HashType;
     use rs_merkle::{algorithms::Sha256, MerkleTree};
 
     #[test]
     pub fn should_return_a_correct_proof() {
-        let test_data = common::setup();
+        let test_data = common::setup(HashType::Sha256);
         let indices_to_prove = vec![3, 4];
         let expected_proof_hashes = [
             "2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
@@ -56,11 +59,12 @@ pub mod proof {
 
 pub mod commit {
     use crate::common;
-    use rs_merkle::{algorithms::Sha256, Error, Hasher, MerkleTree};
+    use rs_merkle::algorithms::{Hash, HashType};
+    use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
     #[test]
     pub fn should_give_correct_root_after_commit() {
-        let test_data = common::setup();
+        let test_data = common::setup(HashType::Sha256);
         let expected_root = test_data.expected_root_hex.clone();
         let leaf_hashes = &test_data.leaf_hashes;
         let vec = Vec::<[u8; 32]>::new();
@@ -76,7 +80,7 @@ pub mod commit {
         assert_eq!(root, Some(expected_root.to_string()));
 
         let expected_root = "e2a80e0e872a6c6eaed37b4c1f220e1935004805585b5f99617e48e9c8fe4034";
-        let leaf = Sha256::hash("g".as_bytes());
+        let leaf = Hash::hash("g".as_bytes(), HashType::Sha256);
         merkle_tree.insert(leaf);
 
         assert_eq!(
@@ -89,7 +93,10 @@ pub mod commit {
 
         merkle_tree.commit();
 
-        let mut new_leaves = vec![Sha256::hash("h".as_bytes()), Sha256::hash("k".as_bytes())];
+        let mut new_leaves = vec![
+            Hash::hash("h".as_bytes(), HashType::Sha256),
+            Hash::hash("k".as_bytes(), HashType::Sha256),
+        ];
         merkle_tree.append(&mut new_leaves);
 
         assert_eq!(
@@ -119,7 +126,7 @@ pub mod commit {
         let elements = ["a", "b", "c", "d", "e", "f"];
         let mut leaves: Vec<[u8; 32]> = elements
             .iter()
-            .map(|x| Sha256::hash(x.as_bytes()))
+            .map(|x| Hash::hash(x.as_bytes(), HashType::Sha256))
             .collect();
 
         let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::new();
@@ -146,7 +153,7 @@ pub mod commit {
         assert_eq!(merkle_tree.uncommitted_root_hex(), None);
 
         // Adding a new leaf
-        merkle_tree.insert(Sha256::hash("g".as_bytes()));
+        merkle_tree.insert(Hash::hash("g".as_bytes(), HashType::Sha256));
         assert_eq!(
             merkle_tree.uncommitted_root_hex(),
             Some("e2a80e0e872a6c6eaed37b4c1f220e1935004805585b5f99617e48e9c8fe4034".to_string())
@@ -160,8 +167,13 @@ pub mod commit {
         );
 
         // Adding some more leaves
-        merkle_tree
-            .append(vec![Sha256::hash("h".as_bytes()), Sha256::hash("k".as_bytes())].as_mut());
+        merkle_tree.append(
+            vec![
+                Hash::hash("h".as_bytes(), HashType::Sha256),
+                Hash::hash("k".as_bytes(), HashType::Sha256),
+            ]
+            .as_mut(),
+        );
         merkle_tree.commit();
         merkle_tree.commit();
         assert_eq!(
@@ -186,7 +198,7 @@ pub mod commit {
 }
 
 pub mod rollback {
-    use crate::common;
+    use rs_merkle::algorithms::{Hash, HashType};
     use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
     #[test]
@@ -194,7 +206,7 @@ pub mod rollback {
         let leaf_values = ["a", "b", "c", "d", "e", "f"];
         let leaves: Vec<[u8; 32]> = leaf_values
             .iter()
-            .map(|x| Sha256::hash(x.as_bytes()))
+            .map(|x| Hash::hash(x.as_bytes(), HashType::Sha256))
             .collect();
 
         let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::new();
@@ -210,7 +222,7 @@ pub mod rollback {
         );
 
         // Adding a new leaf
-        merkle_tree.insert(Sha256::hash("g".as_bytes()));
+        merkle_tree.insert(Hash::hash("g".as_bytes(), HashType::Sha256));
 
         // Uncommitted root must reflect the insert
         assert_eq!(
@@ -227,8 +239,13 @@ pub mod rollback {
         );
 
         // Adding some more leaves
-        merkle_tree
-            .append(vec![Sha256::hash("h".as_bytes()), Sha256::hash("k".as_bytes())].as_mut());
+        merkle_tree.append(
+            vec![
+                Hash::hash("h".as_bytes(), HashType::Sha256),
+                Hash::hash("k".as_bytes(), HashType::Sha256),
+            ]
+            .as_mut(),
+        );
 
         // Checking that the uncommitted root has changed, but the committed one hasn't
         assert_eq!(
