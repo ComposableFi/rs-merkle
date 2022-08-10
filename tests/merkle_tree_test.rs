@@ -275,7 +275,7 @@ pub mod commit {
     }
 
     #[test]
-    pub fn should_not_change_the_result_when_called_twice() {
+    pub fn should_not_change_the_result_when_called_twice_sha256() {
         let elements = ["a", "b", "c", "d", "e", "f"];
         let tree_properties = TreeProperties {
             sorted_pair_enabled: false,
@@ -346,13 +346,95 @@ pub mod commit {
             Some("1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2".to_string())
         );
     }
+
+    #[test]
+    pub fn should_not_change_the_result_when_called_twice_keccak256() {
+        let elements = ["a", "b", "c", "d", "e", "f"];
+        let tree_properties = TreeProperties {
+            sorted_pair_enabled: true,
+        };
+        let mut leaves: Vec<[u8; 32]> = elements
+            .iter()
+            .map(|x| Keccak256::hash(x.as_bytes()))
+            .collect();
+
+        let mut merkle_tree: MerkleTree<Keccak256> = MerkleTree::new();
+
+        // Appending leaves to the tree without committing
+        merkle_tree.append(&mut leaves);
+
+        // Without committing changes we can get the root for the uncommitted data, but committed
+        // tree still doesn't have any elements
+        assert_eq!(merkle_tree.root(), None);
+        assert_eq!(
+            merkle_tree.uncommitted_root_hex(tree_properties),
+            Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
+        );
+
+        // Committing the changes
+        merkle_tree.commit(tree_properties);
+
+        // Changes applied to the tree after commit, and since there's no new staged changes
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
+        );
+        assert_eq!(merkle_tree.uncommitted_root_hex(tree_properties), None);
+
+        // Adding a new leaf
+        merkle_tree.insert(Keccak256::hash("g".as_bytes()));
+        assert_eq!(
+            merkle_tree.uncommitted_root_hex(tree_properties),
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
+        );
+        merkle_tree.commit(tree_properties);
+
+        // Root was updated after insertion
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
+        );
+
+        // Adding some more leaves
+        merkle_tree.append(
+            vec![
+                Keccak256::hash("h".as_bytes()),
+                Keccak256::hash("k".as_bytes()),
+            ]
+            .as_mut(),
+        );
+        merkle_tree.commit(tree_properties);
+        merkle_tree.commit(tree_properties);
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("795ea4413965030bfef44c5a852162e0cc357b050813f0f9140e812b9c41c245".to_string())
+        );
+
+        // Rolling back to the previous state
+        merkle_tree.rollback();
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
+        );
+
+        // We can rollback multiple times as well
+        merkle_tree.rollback();
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
+        );
+    }
 }
 
 pub mod rollback {
-    use rs_merkle::{algorithms::Sha256, utils::properties::TreeProperties, MerkleTree};
+    use rs_merkle::{
+        algorithms::{Keccak256, Sha256},
+        utils::properties::TreeProperties,
+        MerkleTree,
+    };
 
     #[test]
-    pub fn should_rollback_previous_commit() {
+    pub fn should_rollback_previous_commit_sha256() {
         let leaf_values = ["a", "b", "c", "d", "e", "f"];
         let tree_properties = TreeProperties {
             sorted_pair_enabled: false,
@@ -427,6 +509,90 @@ pub mod rollback {
         assert_eq!(
             merkle_tree.root_hex(),
             Some("1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2".to_string())
+        );
+    }
+
+    #[test]
+    pub fn should_rollback_previous_commit_keccak256() {
+        let leaf_values = ["a", "b", "c", "d", "e", "f"];
+        let tree_properties = TreeProperties {
+            sorted_pair_enabled: false,
+        };
+        let leaves: Vec<[u8; 32]> = leaf_values
+            .iter()
+            .map(|x| Keccak256::hash(x.as_bytes()))
+            .collect();
+
+        let mut merkle_tree: MerkleTree<Keccak256> = MerkleTree::new();
+        merkle_tree.append(leaves.clone().as_mut());
+        // No changes were committed just yet, tree is empty
+        assert_eq!(merkle_tree.root(), None);
+
+        merkle_tree.commit(tree_properties);
+
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
+        );
+
+        // Adding a new leaf
+        merkle_tree.insert(Keccak256::hash("g".as_bytes()));
+
+        // Uncommitted root must reflect the insert
+        assert_eq!(
+            merkle_tree.uncommitted_root_hex(tree_properties),
+            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+        );
+
+        merkle_tree.commit(tree_properties);
+
+        // After calling commit, uncommitted root will become committed
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+        );
+
+        // Adding some more leaves
+        merkle_tree.append(
+            vec![
+                Keccak256::hash("h".as_bytes()),
+                Keccak256::hash("k".as_bytes()),
+            ]
+            .as_mut(),
+        );
+
+        // Checking that the uncommitted root has changed, but the committed one hasn't
+        assert_eq!(
+            merkle_tree.uncommitted_root_hex(tree_properties),
+            Some("5c8ad9c94045e26f5bde9c1b6e42acde2d8f5ced5c60564f1004288906e012f4".to_string())
+        );
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+        );
+
+        merkle_tree.commit(tree_properties);
+
+        // Checking committed changes again
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("5c8ad9c94045e26f5bde9c1b6e42acde2d8f5ced5c60564f1004288906e012f4".to_string())
+        );
+
+        merkle_tree.rollback();
+
+        // Check that we rolled one commit back
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+        );
+
+        merkle_tree.rollback();
+
+        // Rolling back to the state after the very first commit
+        assert_eq!(
+            merkle_tree.root_hex(),
+            Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
         );
     }
 }
