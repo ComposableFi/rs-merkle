@@ -1,4 +1,4 @@
-use rs_merkle::{Hasher, MerkleTree};
+use rs_merkle::{utils::properties::TreeProperties, Hasher, MerkleTree};
 
 pub struct TestData<T: Hasher> {
     pub leaf_values: Vec<String>,
@@ -32,9 +32,7 @@ pub fn combinations<T: Clone>(vec: Vec<T>) -> Vec<Vec<T>> {
     combine(Vec::new(), vec, Vec::new())
 }
 
-pub fn setup<T: Hasher>() -> TestData<T> {
-    let leaf_values = ["a", "b", "c", "d", "e", "f"];
-    let expected_root_hex = "1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2";
+pub fn setup<T: Hasher>(leaf_values: &[&str], expected_root_hex: &str) -> TestData<T> {
     let leaf_hashes: Vec<T::Hash> = leaf_values.iter().map(|x| T::hash(x.as_bytes())).collect();
 
     TestData {
@@ -66,7 +64,9 @@ impl<T: Hasher> MerkleProofTestCase<T> {
     }
 }
 
-pub fn setup_proof_test_cases<T: Hasher>() -> Vec<ProofTestCases<T>> {
+pub fn setup_proof_test_cases<T: Hasher>(
+    tree_properties: TreeProperties,
+) -> Vec<ProofTestCases<T>> {
     let max_case = [
         "a", "b", "c", "d", "e", "f", "g", "h", "k", "l", "m", "o", "p", "r", "s",
     ];
@@ -95,7 +95,7 @@ pub fn setup_proof_test_cases<T: Hasher>() -> Vec<ProofTestCases<T>> {
                     MerkleProofTestCase::new(leaves2, indices)
                 })
                 .collect();
-            let merkle_tree = MerkleTree::<T>::from_leaves(&leaves);
+            let merkle_tree = MerkleTree::<T>::from_leaves(&leaves, tree_properties);
 
             let case = ProofTestCases { merkle_tree, cases };
             case

@@ -30,17 +30,20 @@
 //! Basic usage for verifying Merkle proofs:
 //!
 //! ```
-//! # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+//! # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
 //! # use std::convert::TryFrom;
 //! #
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let tree_properties = TreeProperties {
+//!    sorted_pair_enabled: false,
+//! };
 //! let leaf_values = ["a", "b", "c", "d", "e", "f"];
 //! let leaves: Vec<[u8; 32]> = leaf_values
 //!     .iter()
 //!     .map(|x| Sha256::hash(x.as_bytes()))
 //!     .collect();
 //!
-//! let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+//! let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
 //! let indices_to_prove = vec![3, 4];
 //! let leaves_to_prove = leaves.get(3..5).ok_or("can't get leaves to prove")?;
 //! let merkle_proof = merkle_tree.proof(&indices_to_prove);
@@ -51,7 +54,7 @@
 //! // Parse proof back on the client
 //! let proof = MerkleProof::<Sha256>::try_from(proof_bytes)?;
 //!
-//! assert!(proof.verify(merkle_root, &indices_to_prove, leaves_to_prove, leaves.len()));
+//! assert!(proof.verify(merkle_root, &indices_to_prove, leaves_to_prove, leaves.len(),tree_properties));
 //! # Ok(())
 //! # }
 //! ```
@@ -59,9 +62,12 @@
 //! Advanced usage with rolling several commits back:
 //!
 //! ```
-//! # use rs_merkle::{MerkleTree, algorithms::Sha256, Hasher, Error};
+//! # use rs_merkle::{MerkleTree, algorithms::Sha256, Hasher, Error, utils::properties::TreeProperties};
 //! #
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let tree_properties = TreeProperties {
+//!    sorted_pair_enabled: false,
+//! };
 //! let elements = ["a", "b", "c", "d", "e", "f"];
 //! let mut leaves: Vec<[u8; 32]> = elements
 //!     .iter()
@@ -77,22 +83,22 @@
 //! // tree still doesn't have any elements
 //! assert_eq!(merkle_tree.root(), None);
 //! assert_eq!(
-//!     merkle_tree.uncommitted_root_hex(),
+//!     merkle_tree.uncommitted_root_hex(tree_properties),
 //!     Some("1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2".to_string())
 //! );
 //!
 //! // Committing the changes
-//! merkle_tree.commit();
+//! merkle_tree.commit(tree_properties);
 //!
 //! // Changes applied to the tree after the commit, and there's no uncommitted changes anymore
 //! assert_eq!(
 //!     merkle_tree.root_hex(),
 //!     Some("1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2".to_string())
 //! );
-//! assert_eq!(merkle_tree.uncommitted_root_hex(), None);
+//! assert_eq!(merkle_tree.uncommitted_root_hex(tree_properties), None);
 //!
 //! // Adding a new leaf
-//! merkle_tree.insert(Sha256::hash("g".as_bytes())).commit();
+//! merkle_tree.insert(Sha256::hash("g".as_bytes())).commit(tree_properties);
 //!
 //! // Root was updated after insertion
 //! assert_eq!(
@@ -104,7 +110,7 @@
 //! merkle_tree.append(vec![
 //!     Sha256::hash("h".as_bytes()),
 //!     Sha256::hash("k".as_bytes()),
-//! ].as_mut()).commit();
+//! ].as_mut()).commit(tree_properties);
 //! assert_eq!(
 //!     merkle_tree.root_hex(),
 //!     Some("09b6890b23e32e607f0e5f670ab224e36af8f6599cbe88b468f4b0f761802dd6".to_string())
