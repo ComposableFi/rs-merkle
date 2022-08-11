@@ -17,11 +17,14 @@ pub struct MerkleTree<T: Hasher> {
     current_working_tree: PartialTree<T>,
     history: Vec<PartialTree<T>>,
     uncommitted_leaves: Vec<T::Hash>,
+    tree_properties: TreeProperties,
 }
 
 impl<T: Hasher> Default for MerkleTree<T> {
     fn default() -> Self {
-        Self::new()
+        Self::new(TreeProperties {
+            sorted_pair_enabled: false,
+        })
     }
 }
 
@@ -31,17 +34,22 @@ impl<T: Hasher> MerkleTree<T> {
     /// # Examples
     ///
     /// ```
-    /// use rs_merkle::{MerkleTree, algorithms::Sha256};
+    /// use rs_merkle::{MerkleTree, algorithms::Sha256, utils::properties::TreeProperties};
     ///
-    /// let merkle_tree: MerkleTree<Sha256> = MerkleTree::new();
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
     ///
-    /// let another_merkle_tree = MerkleTree::<Sha256>::new();
+    /// let merkle_tree: MerkleTree<Sha256> = MerkleTree::new(tree_properties);
+    ///
+    /// let another_merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// ```
-    pub fn new() -> Self {
+    pub fn new(tree_properties: TreeProperties) -> Self {
         Self {
             current_working_tree: PartialTree::new(),
             history: Vec::new(),
             uncommitted_leaves: Vec::new(),
+            tree_properties,
         }
     }
 
@@ -66,10 +74,10 @@ impl<T: Hasher> MerkleTree<T> {
     /// # Ok(())
     /// # }
     pub fn from_leaves(leaves: &[T::Hash], tree_properties: TreeProperties) -> Self {
-        let mut tree = Self::new();
+        let mut tree = Self::new(tree_properties);
 
         tree.append(leaves.to_vec().as_mut());
-        tree.commit(tree_properties);
+        tree.commit();
 
         tree
     }
@@ -230,12 +238,12 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///     sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// merkle_tree.insert(Sha256::hash("a".as_bytes()));
     ///
     /// assert_eq!(merkle_tree.root(), None);
     ///
-    /// merkle_tree.commit(tree_properties);
+    /// merkle_tree.commit();
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
     ///     Some("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb".to_string())
@@ -253,10 +261,10 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///     sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// merkle_tree
     ///     .insert(Sha256::hash("a".as_bytes()))
-    ///     .commit(tree_properties);
+    ///     .commit();
     ///
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
@@ -283,14 +291,14 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///     sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     /// ];
     /// merkle_tree
     ///     .append(&mut leaves)
-    ///     .commit(tree_properties);
+    ///     .commit();
     ///
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
@@ -318,7 +326,7 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///    sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -329,7 +337,7 @@ impl<T: Hasher> MerkleTree<T> {
     ///     None
     /// );
     ///
-    /// merkle_tree.commit(tree_properties);
+    /// merkle_tree.commit();
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
     ///     Some("e5a01fee14e0ed5c48714f22180f25ad8365b53f9779f79dc4a3d7e93963f94a".to_string())
@@ -337,8 +345,8 @@ impl<T: Hasher> MerkleTree<T> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn commit(&mut self, tree_properties: TreeProperties) {
-        if let Some(diff) = self.uncommitted_diff(tree_properties) {
+    pub fn commit(&mut self) {
+        if let Some(diff) = self.uncommitted_diff() {
             self.history.push(diff.clone());
             self.current_working_tree.merge_unverified(diff);
             self.uncommitted_leaves.clear();
@@ -356,15 +364,15 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///    sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     ///
-    /// merkle_tree.insert(Sha256::hash("a".as_bytes())).commit(tree_properties);
+    /// merkle_tree.insert(Sha256::hash("a".as_bytes())).commit();
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
     ///     Some("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb".to_string())
     /// );
     ///
-    /// merkle_tree.insert(Sha256::hash("b".as_bytes())).commit(tree_properties);
+    /// merkle_tree.insert(Sha256::hash("b".as_bytes())).commit();
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
     ///     Some("e5a01fee14e0ed5c48714f22180f25ad8365b53f9779f79dc4a3d7e93963f94a".to_string())
@@ -396,8 +404,8 @@ impl<T: Hasher> MerkleTree<T> {
     /// Will return the same hash as [`MerkleTree::root`] after [`MerkleTree::commit`]
     ///
     /// For examples, please check [`MerkleTree::uncommitted_root_hex`]
-    pub fn uncommitted_root(&self, tree_properties: TreeProperties) -> Option<T::Hash> {
-        let shadow_tree = self.uncommitted_diff(tree_properties)?;
+    pub fn uncommitted_root(&self) -> Option<T::Hash> {
+        let shadow_tree = self.uncommitted_diff()?;
         shadow_tree.root().cloned()
     }
 
@@ -414,7 +422,7 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///    sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -425,11 +433,11 @@ impl<T: Hasher> MerkleTree<T> {
     ///     None
     /// );
     /// assert_eq!(
-    ///      merkle_tree.uncommitted_root_hex(tree_properties),
+    ///      merkle_tree.uncommitted_root_hex(),
     ///      Some("e5a01fee14e0ed5c48714f22180f25ad8365b53f9779f79dc4a3d7e93963f94a".to_string())
     /// );
     ///
-    /// merkle_tree.commit(tree_properties);
+    /// merkle_tree.commit();
     /// assert_eq!(
     ///     merkle_tree.root_hex(),
     ///     Some("e5a01fee14e0ed5c48714f22180f25ad8365b53f9779f79dc4a3d7e93963f94a".to_string())
@@ -437,8 +445,8 @@ impl<T: Hasher> MerkleTree<T> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn uncommitted_root_hex(&self, tree_properties: TreeProperties) -> Option<String> {
-        let root = self.uncommitted_root(tree_properties)?;
+    pub fn uncommitted_root_hex(&self) -> Option<String> {
+        let root = self.uncommitted_root()?;
         Some(utils::collections::to_hex_string(&root))
     }
 
@@ -454,7 +462,7 @@ impl<T: Hasher> MerkleTree<T> {
     /// let tree_properties = TreeProperties {
     ///     sorted_pair_enabled: false,
     /// };
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -466,7 +474,7 @@ impl<T: Hasher> MerkleTree<T> {
     ///
     /// merkle_tree.append(&mut leaves);
     /// merkle_tree.abort_uncommitted();
-    /// merkle_tree.commit(tree_properties);
+    /// merkle_tree.commit();
     ///
     /// assert_eq!(
     ///     merkle_tree.root(),
@@ -578,7 +586,7 @@ impl<T: Hasher> MerkleTree<T> {
 
     /// Creates a diff from a changes that weren't committed to the main tree yet. Can be used
     /// to get uncommitted root or can be merged with the main tree
-    fn uncommitted_diff(&self, tree_properties: TreeProperties) -> Option<PartialTree<T>> {
+    fn uncommitted_diff(&self) -> Option<PartialTree<T>> {
         if self.uncommitted_leaves.is_empty() {
             return None;
         }
@@ -612,6 +620,11 @@ impl<T: Hasher> MerkleTree<T> {
             None => partial_tree_tuples.push(shadow_node_tuples),
         }
         // Building a partial tree with the changes that would be needed to the working tree
-        PartialTree::<T>::build(partial_tree_tuples, uncommitted_tree_depth, tree_properties).ok()
+        PartialTree::<T>::build(
+            partial_tree_tuples,
+            uncommitted_tree_depth,
+            self.tree_properties,
+        )
+        .ok()
     }
 }

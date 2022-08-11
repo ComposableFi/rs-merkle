@@ -6,12 +6,15 @@ use sha2::{digest::FixedOutput, Digest, Sha256};
 /// # Examples
 ///
 /// ```
-/// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+/// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
 /// # use std::convert::TryFrom;
 /// #
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-///  let tree = MerkleTree::<Sha256>::new();
-///  let other_tree: MerkleTree<Sha256> = MerkleTree::new();
+///  let tree_properties = TreeProperties {
+///    sorted_pair_enabled: false,
+///  };
+///  let tree = MerkleTree::<Sha256>::new(tree_properties);
+///  let other_tree: MerkleTree<Sha256> = MerkleTree::new(tree_properties);
 ///
 /// let proof_bytes: Vec<u8> = vec![
 ///     46, 125, 44, 3, 169, 80, 122, 226, 101, 236, 245, 181, 53, 104, 133, 165, 51, 147, 162,

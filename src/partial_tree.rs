@@ -114,14 +114,7 @@ impl<T: Hasher> PartialTree<T> {
         let mut reversed_layers: Vec<Vec<(usize, T::Hash)>> =
             partial_layers.drain(..).rev().collect();
 
-        // This iterates to full_tree_depth and not to the partial_layers_len because
-        // when constructing
-
-        // std::println!("{:?}", reversed_layers.len());
-        // for i in &reversed_layers {
-        //     std::println!("reversed layers {:?}", i);
-        // }
-
+        // This iterates to full_tree_depth and not to the partial_layers_len because when constructing
         // It is iterating to full_tree_depth instead of partial_layers.len to address the case
         // of applying changes to a tree when tree requires a resize, and partial layer len
         // in that case going to be lower that the resulting tree depth
@@ -130,7 +123,7 @@ impl<T: Hasher> PartialTree<T> {
             if let Some(mut nodes) = reversed_layers.pop() {
                 current_layer.append(&mut nodes);
             }
-            // TODO: swapping b and a allows [1,2] to prove correctly
+
             current_layer.sort_by(|(a, _), (b, _)| a.cmp(b));
 
             // Adding partial layer to the tree

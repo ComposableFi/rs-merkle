@@ -2,28 +2,26 @@ use rand::{distributions::Alphanumeric, Rng};
 use rs_merkle::{
     algorithms::Keccak256, utils, utils::properties::TreeProperties, MerkleProof, MerkleTree,
 };
-use std::convert::TryFrom; // 0.8
-                           // TODO:
-                           // Remove main.rs before merge
-                           // remove hex dependency before merge
-                           // Add tests for keccak256
-                           // NOTE: in order to run, cargo build, cargo run
+use std::convert::TryFrom;
+// TODO:
+// Remove main.rs before merge
+// NOTE: in order to run, cargo build, cargo run
 fn main() {
     let tree_props = TreeProperties {
         sorted_pair_enabled: true,
     };
-    let leaf_values = ["a", "b", "c", "d", "e", "f", "g"];
-    // let leaf_values: Vec<String> = (0..1000)
-    //     .map(|_| {
-    //         let rng = rand::thread_rng();
-    //         let random_string: String = rng
-    //             .sample_iter(&Alphanumeric)
-    //             .take(1000)
-    //             .map(char::from)
-    //             .collect();
-    //         random_string
-    //     })
-    //     .collect();
+    //let leaf_values = ["a", "b", "c", "d", "e", "f", "g"];
+    let leaf_values: Vec<String> = (0..1000)
+        .map(|_| {
+            let rng = rand::thread_rng();
+            let random_string: String = rng
+                .sample_iter(&Alphanumeric)
+                .take(1000)
+                .map(char::from)
+                .collect();
+            random_string
+        })
+        .collect();
 
     let leaves: Vec<[u8; 32]> = leaf_values
         .iter()
@@ -43,7 +41,6 @@ fn main() {
 
     // Serialize proof to pass it to the client
     let proof_bytes = merkle_proof.to_bytes();
-    //println!("{:?}", proof_bytes);
 
     // Parse proof back on the client
     let proof = MerkleProof::<Keccak256>::try_from(proof_bytes).unwrap();

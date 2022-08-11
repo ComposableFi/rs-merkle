@@ -166,7 +166,7 @@ pub mod commit {
         let merkle_tree2 = MerkleTree::<Sha256>::from_leaves(&leaf_hashes, tree_properties);
         // Adding leaves
         merkle_tree.append(leaf_hashes.clone().as_mut());
-        let root = merkle_tree.uncommitted_root_hex(tree_properties);
+        let root = merkle_tree.uncommitted_root_hex();
 
         assert_eq!(merkle_tree2.root_hex(), Some(expected_root.to_string()));
         assert_eq!(root, Some(expected_root.to_string()));
@@ -176,14 +176,14 @@ pub mod commit {
         merkle_tree.insert(leaf);
 
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some(expected_root.to_string())
         );
 
         // No changes were committed just yet, tree is empty
         assert_eq!(merkle_tree.root(), None);
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         let mut new_leaves = vec![Sha256::hash("h".as_bytes()), Sha256::hash("k".as_bytes())];
         merkle_tree.append(&mut new_leaves);
@@ -193,11 +193,11 @@ pub mod commit {
             Some("e2a80e0e872a6c6eaed37b4c1f220e1935004805585b5f99617e48e9c8fe4034".to_string())
         );
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("09b6890b23e32e607f0e5f670ab224e36af8f6599cbe88b468f4b0f761802dd6".to_string())
         );
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
         let leaves = merkle_tree
             .leaves()
             .expect("expect the tree to have some leaves");
@@ -227,7 +227,7 @@ pub mod commit {
         let merkle_tree2 = MerkleTree::<Keccak256>::from_leaves(&leaf_hashes, tree_properties);
         // Adding leaves
         merkle_tree.append(leaf_hashes.clone().as_mut());
-        let root = merkle_tree.uncommitted_root_hex(tree_properties);
+        let root = merkle_tree.uncommitted_root_hex();
 
         assert_eq!(merkle_tree2.root_hex(), Some(expected_root.to_string()));
         assert_eq!(root, Some(expected_root.to_string()));
@@ -237,14 +237,14 @@ pub mod commit {
         merkle_tree.insert(leaf);
 
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some(expected_root.to_string())
         );
 
         // No changes were committed just yet, tree is empty
         assert_eq!(merkle_tree.root(), None);
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         let mut new_leaves = vec![
             Keccak256::hash("h".as_bytes()),
@@ -257,11 +257,11 @@ pub mod commit {
             Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("795ea4413965030bfef44c5a852162e0cc357b050813f0f9140e812b9c41c245".to_string())
         );
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
         let leaves = merkle_tree
             .leaves()
             .expect("expect the tree to have some leaves");
@@ -285,7 +285,7 @@ pub mod commit {
             .map(|x| Sha256::hash(x.as_bytes()))
             .collect();
 
-        let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::new();
+        let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::new(tree_properties);
 
         // Appending leaves to the tree without committing
         merkle_tree.append(&mut leaves);
@@ -294,27 +294,27 @@ pub mod commit {
         // tree still doesn't have any elements
         assert_eq!(merkle_tree.root(), None);
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2".to_string())
         );
 
         // Committing the changes
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // Changes applied to the tree after commit, and since there's no new staged changes
         assert_eq!(
             merkle_tree.root_hex(),
             Some("1f7379539707bcaea00564168d1d4d626b09b73f8a2a365234c62d763f854da2".to_string())
         );
-        assert_eq!(merkle_tree.uncommitted_root_hex(tree_properties), None);
+        assert_eq!(merkle_tree.uncommitted_root_hex(), None);
 
         // Adding a new leaf
         merkle_tree.insert(Sha256::hash("g".as_bytes()));
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("e2a80e0e872a6c6eaed37b4c1f220e1935004805585b5f99617e48e9c8fe4034".to_string())
         );
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // Root was updated after insertion
         assert_eq!(
@@ -325,8 +325,8 @@ pub mod commit {
         // Adding some more leaves
         merkle_tree
             .append(vec![Sha256::hash("h".as_bytes()), Sha256::hash("k".as_bytes())].as_mut());
-        merkle_tree.commit(tree_properties);
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
+        merkle_tree.commit();
         assert_eq!(
             merkle_tree.root_hex(),
             Some("09b6890b23e32e607f0e5f670ab224e36af8f6599cbe88b468f4b0f761802dd6".to_string())
@@ -358,7 +358,7 @@ pub mod commit {
             .map(|x| Keccak256::hash(x.as_bytes()))
             .collect();
 
-        let mut merkle_tree: MerkleTree<Keccak256> = MerkleTree::new();
+        let mut merkle_tree: MerkleTree<Keccak256> = MerkleTree::new(tree_properties);
 
         // Appending leaves to the tree without committing
         merkle_tree.append(&mut leaves);
@@ -367,27 +367,27 @@ pub mod commit {
         // tree still doesn't have any elements
         assert_eq!(merkle_tree.root(), None);
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
         );
 
         // Committing the changes
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // Changes applied to the tree after commit, and since there's no new staged changes
         assert_eq!(
             merkle_tree.root_hex(),
             Some("9012f1e18a87790d2e01faace75aaaca38e53df437cdce2c0552464dda4af49c".to_string())
         );
-        assert_eq!(merkle_tree.uncommitted_root_hex(tree_properties), None);
+        assert_eq!(merkle_tree.uncommitted_root_hex(), None);
 
         // Adding a new leaf
         merkle_tree.insert(Keccak256::hash("g".as_bytes()));
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // Root was updated after insertion
         assert_eq!(
@@ -403,8 +403,8 @@ pub mod commit {
             ]
             .as_mut(),
         );
-        merkle_tree.commit(tree_properties);
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
+        merkle_tree.commit();
         assert_eq!(
             merkle_tree.root_hex(),
             Some("795ea4413965030bfef44c5a852162e0cc357b050813f0f9140e812b9c41c245".to_string())
@@ -444,12 +444,12 @@ pub mod rollback {
             .map(|x| Sha256::hash(x.as_bytes()))
             .collect();
 
-        let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::new();
+        let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::new(tree_properties);
         merkle_tree.append(leaves.clone().as_mut());
         // No changes were committed just yet, tree is empty
         assert_eq!(merkle_tree.root(), None);
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         assert_eq!(
             merkle_tree.root_hex(),
@@ -461,11 +461,11 @@ pub mod rollback {
 
         // Uncommitted root must reflect the insert
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("e2a80e0e872a6c6eaed37b4c1f220e1935004805585b5f99617e48e9c8fe4034".to_string())
         );
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // After calling commit, uncommitted root will become committed
         assert_eq!(
@@ -479,7 +479,7 @@ pub mod rollback {
 
         // Checking that the uncommitted root has changed, but the committed one hasn't
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("09b6890b23e32e607f0e5f670ab224e36af8f6599cbe88b468f4b0f761802dd6".to_string())
         );
         assert_eq!(
@@ -487,7 +487,7 @@ pub mod rollback {
             Some("e2a80e0e872a6c6eaed37b4c1f220e1935004805585b5f99617e48e9c8fe4034".to_string())
         );
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // Checking committed changes again
         assert_eq!(
@@ -523,12 +523,12 @@ pub mod rollback {
             .map(|x| Keccak256::hash(x.as_bytes()))
             .collect();
 
-        let mut merkle_tree: MerkleTree<Keccak256> = MerkleTree::new();
+        let mut merkle_tree: MerkleTree<Keccak256> = MerkleTree::new(tree_properties);
         merkle_tree.append(leaves.clone().as_mut());
         // No changes were committed just yet, tree is empty
         assert_eq!(merkle_tree.root(), None);
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         assert_eq!(
             merkle_tree.root_hex(),
@@ -540,11 +540,11 @@ pub mod rollback {
 
         // Uncommitted root must reflect the insert
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // After calling commit, uncommitted root will become committed
         assert_eq!(
@@ -563,7 +563,7 @@ pub mod rollback {
 
         // Checking that the uncommitted root has changed, but the committed one hasn't
         assert_eq!(
-            merkle_tree.uncommitted_root_hex(tree_properties),
+            merkle_tree.uncommitted_root_hex(),
             Some("795ea4413965030bfef44c5a852162e0cc357b050813f0f9140e812b9c41c245".to_string())
         );
         assert_eq!(
@@ -571,7 +571,7 @@ pub mod rollback {
             Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
 
-        merkle_tree.commit(tree_properties);
+        merkle_tree.commit();
 
         // Checking committed changes again
         assert_eq!(
