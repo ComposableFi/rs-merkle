@@ -516,7 +516,7 @@ pub mod rollback {
     pub fn should_rollback_previous_commit_keccak256() {
         let leaf_values = ["a", "b", "c", "d", "e", "f"];
         let tree_properties = TreeProperties {
-            sorted_pair_enabled: false,
+            sorted_pair_enabled: true,
         };
         let leaves: Vec<[u8; 32]> = leaf_values
             .iter()
@@ -541,7 +541,7 @@ pub mod rollback {
         // Uncommitted root must reflect the insert
         assert_eq!(
             merkle_tree.uncommitted_root_hex(tree_properties),
-            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
 
         merkle_tree.commit(tree_properties);
@@ -549,7 +549,7 @@ pub mod rollback {
         // After calling commit, uncommitted root will become committed
         assert_eq!(
             merkle_tree.root_hex(),
-            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
 
         // Adding some more leaves
@@ -564,11 +564,11 @@ pub mod rollback {
         // Checking that the uncommitted root has changed, but the committed one hasn't
         assert_eq!(
             merkle_tree.uncommitted_root_hex(tree_properties),
-            Some("5c8ad9c94045e26f5bde9c1b6e42acde2d8f5ced5c60564f1004288906e012f4".to_string())
+            Some("795ea4413965030bfef44c5a852162e0cc357b050813f0f9140e812b9c41c245".to_string())
         );
         assert_eq!(
             merkle_tree.root_hex(),
-            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
 
         merkle_tree.commit(tree_properties);
@@ -576,7 +576,7 @@ pub mod rollback {
         // Checking committed changes again
         assert_eq!(
             merkle_tree.root_hex(),
-            Some("5c8ad9c94045e26f5bde9c1b6e42acde2d8f5ced5c60564f1004288906e012f4".to_string())
+            Some("795ea4413965030bfef44c5a852162e0cc357b050813f0f9140e812b9c41c245".to_string())
         );
 
         merkle_tree.rollback();
@@ -584,7 +584,7 @@ pub mod rollback {
         // Check that we rolled one commit back
         assert_eq!(
             merkle_tree.root_hex(),
-            Some("ec287d0f255d6e478a8e9144b99f869610196641c74af6c76f6621a4da7d67cb".to_string())
+            Some("329bcb82b465308e4d3445408c794db388e401855b1fe6f2981c93ca34ce516b".to_string())
         );
 
         merkle_tree.rollback();
