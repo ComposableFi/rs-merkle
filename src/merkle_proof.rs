@@ -3,7 +3,9 @@ use crate::{
     error::Error,
     partial_tree::PartialTree,
     proof_serializers::{DirectHashesOrder, MerkleProofSerializer},
-    utils, Hasher,
+    utils,
+    utils::properties::TreeProperties,
+    Hasher,
 };
 use core::convert::TryFrom;
 
@@ -135,16 +137,19 @@ impl<T: Hasher> MerkleProof<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     ///
     /// let indices_to_prove = vec![0, 1];
     /// let leaves_to_prove = leaves.get(0..2).ok_or("can't get leaves to prove")?;
@@ -152,7 +157,7 @@ impl<T: Hasher> MerkleProof<T> {
     /// let proof = merkle_tree.proof(&indices_to_prove);
     /// let root = merkle_tree.root().ok_or("couldn't get the merkle root")?;
     ///
-    /// assert!(proof.verify(root, &indices_to_prove, leaves_to_prove, leaves.len()));
+    /// assert!(proof.verify(root, &indices_to_prove, leaves_to_prove, leaves.len(),tree_properties));
     /// # Ok(())
     /// # }
     /// ```
@@ -162,8 +167,14 @@ impl<T: Hasher> MerkleProof<T> {
         leaf_indices: &[usize],
         leaf_hashes: &[T::Hash],
         total_leaves_count: usize,
+        tree_properties: TreeProperties,
     ) -> bool {
-        match self.root(leaf_indices, leaf_hashes, total_leaves_count) {
+        match self.root(
+            leaf_indices,
+            leaf_hashes,
+            total_leaves_count,
+            tree_properties,
+        ) {
             Ok(extracted_root) => extracted_root == root,
             Err(_) => false,
         }
@@ -175,16 +186,19 @@ impl<T: Hasher> MerkleProof<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     ///
     /// let indices_to_prove = vec![0, 1];
     /// let leaves_to_prove = leaves.get(0..2).ok_or("can't get leaves to prove")?;
@@ -193,7 +207,7 @@ impl<T: Hasher> MerkleProof<T> {
     /// let root = merkle_tree.root().ok_or("couldn't get the merkle root")?;
     ///
     /// assert_eq!(
-    ///     proof.root(&indices_to_prove, leaves_to_prove, leaves.len())?,
+    ///     proof.root(&indices_to_prove, leaves_to_prove, leaves.len(),tree_properties)?,
     ///     root
     /// );
     /// # Ok(())
@@ -204,6 +218,7 @@ impl<T: Hasher> MerkleProof<T> {
         leaf_indices: &[usize],
         leaf_hashes: &[T::Hash],
         total_leaves_count: usize,
+        tree_properties: TreeProperties,
     ) -> Result<T::Hash, Error> {
         if leaf_indices.len() != leaf_hashes.len() {
             return Err(Error::leaves_indices_count_mismatch(
@@ -241,7 +256,7 @@ impl<T: Hasher> MerkleProof<T> {
             None => proof_layers.push(leaf_tuples),
         }
 
-        let partial_tree = PartialTree::<T>::build(proof_layers, tree_depth)?;
+        let partial_tree = PartialTree::<T>::build(proof_layers, tree_depth, tree_properties)?;
 
         match partial_tree.root() {
             Some(root) => Ok(*root),
@@ -254,16 +269,19 @@ impl<T: Hasher> MerkleProof<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     ///
     /// let indices_to_prove = vec![0, 1];
     /// let leaves_to_prove = leaves.get(0..2).ok_or("can't get leaves to prove")?;
@@ -272,7 +290,7 @@ impl<T: Hasher> MerkleProof<T> {
     /// let root_hex = merkle_tree.root_hex().ok_or("couldn't get the merkle root")?;
     ///
     /// assert_eq!(
-    ///     proof.root_hex(&indices_to_prove, leaves_to_prove, leaves.len())?,
+    ///     proof.root_hex(&indices_to_prove, leaves_to_prove, leaves.len(),tree_properties)?,
     ///     root_hex
     /// );
     /// # Ok(())
@@ -283,8 +301,14 @@ impl<T: Hasher> MerkleProof<T> {
         leaf_indices: &[usize],
         leaf_hashes: &[T::Hash],
         total_leaves_count: usize,
+        tree_properties: TreeProperties,
     ) -> Result<String, Error> {
-        let root = self.root(leaf_indices, leaf_hashes, total_leaves_count)?;
+        let root = self.root(
+            leaf_indices,
+            leaf_hashes,
+            total_leaves_count,
+            tree_properties,
+        )?;
         Ok(utils::collections::to_hex_string(&root))
     }
 
@@ -373,17 +397,21 @@ impl<T: Hasher> MerkleProof<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// #
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
     /// let leaf_values = ["a", "b", "c", "d", "e", "f"];
     /// let leaves: Vec<[u8; 32]> = leaf_values
     ///     .iter()
     ///     .map(|x| Sha256::hash(x.as_bytes()))
     ///     .collect();
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// let indices_to_prove = vec![3, 4];
     /// let leaves_to_prove = leaves.get(3..5).ok_or("can't get leaves to prove")?;
     /// let merkle_proof = merkle_tree.proof(&indices_to_prove);
@@ -416,18 +444,21 @@ impl<T: Hasher> MerkleProof<T> {
     ///
     /// ```
     /// # use rs_merkle::{
-    /// #   MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, proof_serializers
+    /// #   MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, proof_serializers, utils::properties::TreeProperties
     /// # };
     /// # use std::convert::TryFrom;
     /// #
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaf_values = ["a", "b", "c", "d", "e", "f"];
     /// let leaves: Vec<[u8; 32]> = leaf_values
     ///     .iter()
     ///     .map(|x| Sha256::hash(x.as_bytes()))
     ///     .collect();
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// let indices_to_prove = vec![3, 4];
     /// let leaves_to_prove = leaves.get(3..5).ok_or("can't get leaves to prove")?;
     /// let merkle_proof = merkle_tree.proof(&indices_to_prove);

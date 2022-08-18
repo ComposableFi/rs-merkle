@@ -10,19 +10,24 @@ use core::mem;
 ///
 /// ```
 /// use rs_merkle::{Hasher};
-/// use sha2::{Sha256, Digest, digest::FixedOutput};
+/// use sha2::{digest::FixedOutput, Digest, Sha256};
 ///
 /// #[derive(Clone)]
 /// pub struct Sha256Algorithm {}
 ///
+/// impl Sha256Algorithm {
+///     pub fn hash(data: &[u8]) -> [u8; 32] {
+///         let mut hasher = Sha256::new();
+///
+///        hasher.update(data);
+///         <[u8; 32]>::from(hasher.finalize_fixed())
+///     }
+/// }
 /// impl Hasher for Sha256Algorithm {
 ///     type Hash = [u8; 32];
 ///
 ///     fn hash(data: &[u8]) -> [u8; 32] {
-///         let mut hasher = Sha256::new();
-///
-///         hasher.update(data);
-///         <[u8; 32]>::from(hasher.finalize_fixed())
+///         Sha256Algorithm::hash(data)
 ///     }
 /// }
 /// ```
@@ -39,7 +44,7 @@ pub trait Hasher: Clone {
     /// `PartialEq` is required to compare equality when verifying proof
     /// `Into<Vec<u8>>` is required to be able to serialize proof
     /// `TryFrom<Vec<u8>>` is required to parse hashes from a serialized proof
-    type Hash: Copy + PartialEq + Into<Vec<u8>> + TryFrom<Vec<u8>>;
+    type Hash: std::fmt::Debug + Copy + PartialEq + Into<Vec<u8>> + TryFrom<Vec<u8>>;
 
     /// This associated function takes a slice of bytes and returns a hash of it.
     /// Used by `concat_and_hash` function to build a tree from concatenated hashes

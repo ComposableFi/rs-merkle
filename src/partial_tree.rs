@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::{error::Error, utils, Hasher};
+use crate::{error::Error, utils, utils::properties::TreeProperties, Hasher};
 
 type PartialTreeLayer<H> = Vec<(usize, H)>;
 
@@ -32,15 +32,71 @@ impl<T: Hasher> PartialTree<T> {
 
     /// This is a helper function to build a full tree from a full set of leaves without any
     /// helper indices
-    pub fn from_leaves(leaves: &[T::Hash]) -> Result<Self, Error> {
+    pub fn from_leaves(leaves: &[T::Hash], tree_properties: TreeProperties) -> Result<Self, Error> {
         let leaf_tuples: Vec<(usize, T::Hash)> = leaves.iter().cloned().enumerate().collect();
 
-        Self::build(vec![leaf_tuples], utils::indices::tree_depth(leaves.len()))
+        Self::build(
+            vec![leaf_tuples],
+            utils::indices::tree_depth(leaves.len()),
+            tree_properties,
+        )
     }
 
-    pub fn build(partial_layers: Vec<Vec<(usize, T::Hash)>>, depth: usize) -> Result<Self, Error> {
-        let layers = Self::build_tree(partial_layers, depth)?;
+    pub fn build(
+        partial_layers: Vec<Vec<(usize, T::Hash)>>,
+        depth: usize,
+        tree_properties: TreeProperties,
+    ) -> Result<Self, Error> {
+        let layers = Self::build_tree(partial_layers, depth, tree_properties)?;
+
         Ok(Self { layers })
+    }
+
+    fn sorted_concat_and_hash(
+        left_node: Option<&T::Hash>,
+        right_node: Option<&T::Hash>,
+        current_layer: &mut Vec<(usize, T::Hash)>,
+        parent_node_index: usize,
+    ) -> Result<(), Error> {
+        match left_node {
+            // Populate `current_layer` back for the next iteration
+            Some(left) => {
+                let left_hex = utils::collections::to_hex_string(left);
+
+                match right_node {
+                    Some(right) => {
+                        let right_hex = utils::collections::to_hex_string(right);
+                        if right_hex < left_hex {
+                            current_layer
+                                .push((parent_node_index, T::concat_and_hash(right, left_node)))
+                        } else {
+                            current_layer
+                                .push((parent_node_index, T::concat_and_hash(left, right_node)))
+                        }
+                    }
+                    None => current_layer
+                        .push((parent_node_index, T::concat_and_hash(left, right_node))),
+                }
+                Ok(())
+            }
+            None => return Err(Error::not_enough_helper_nodes()),
+        }
+    }
+
+    fn unsorted_concat_and_hash(
+        left_node: Option<&T::Hash>,
+        right_node: Option<&T::Hash>,
+        current_layer: &mut Vec<(usize, T::Hash)>,
+        parent_node_index: usize,
+    ) -> Result<(), Error> {
+        match left_node {
+            // Populate `current_layer` back for the next iteration
+            Some(left) => {
+                current_layer.push((parent_node_index, T::concat_and_hash(left, right_node)))
+            }
+            None => return Err(Error::not_enough_helper_nodes()),
+        }
+        Ok(())
     }
 
     /// This is a general algorithm for building a partial tree. It can be used to extract root
@@ -49,6 +105,7 @@ impl<T: Hasher> PartialTree<T> {
     fn build_tree(
         mut partial_layers: Vec<Vec<(usize, T::Hash)>>,
         full_tree_depth: usize,
+        tree_properties: TreeProperties,
     ) -> Result<Vec<PartialTreeLayer<T::Hash>>, Error> {
         let mut partial_tree: Vec<Vec<(usize, T::Hash)>> = Vec::new();
         let mut current_layer = Vec::new();
@@ -57,9 +114,7 @@ impl<T: Hasher> PartialTree<T> {
         let mut reversed_layers: Vec<Vec<(usize, T::Hash)>> =
             partial_layers.drain(..).rev().collect();
 
-        // This iterates to full_tree_depth and not to the partial_layers_len because
-        // when constructing
-
+        // This iterates to full_tree_depth and not to the partial_layers_len because when constructing
         // It is iterating to full_tree_depth instead of partial_layers.len to address the case
         // of applying changes to a tree when tree requires a resize, and partial layer len
         // in that case going to be lower that the resulting tree depth
@@ -68,6 +123,7 @@ impl<T: Hasher> PartialTree<T> {
             if let Some(mut nodes) = reversed_layers.pop() {
                 current_layer.append(&mut nodes);
             }
+
             current_layer.sort_by(|(a, _), (b, _)| a.cmp(b));
 
             // Adding partial layer to the tree
@@ -78,13 +134,23 @@ impl<T: Hasher> PartialTree<T> {
             let parent_layer_indices = utils::indices::parent_indices(&indices);
 
             for (i, parent_node_index) in parent_layer_indices.iter().enumerate() {
-                match nodes.get(i * 2) {
-                    // Populate `current_layer` back for the next iteration
-                    Some(left_node) => current_layer.push((
+                let left_node = nodes.get(i * 2);
+                let right_node = nodes.get(i * 2 + 1);
+
+                if tree_properties.sorted_pair_enabled {
+                    Self::sorted_concat_and_hash(
+                        left_node,
+                        right_node,
+                        &mut current_layer,
                         *parent_node_index,
-                        T::concat_and_hash(left_node, nodes.get(i * 2 + 1)),
-                    )),
-                    None => return Err(Error::not_enough_helper_nodes()),
+                    )?;
+                } else {
+                    Self::unsorted_concat_and_hash(
+                        left_node,
+                        right_node,
+                        &mut current_layer,
+                        *parent_node_index,
+                    )?;
                 }
             }
         }
@@ -145,6 +211,11 @@ impl<T: Hasher> PartialTree<T> {
             }
 
             combined_layer.sort_by(|(a, _), (b, _)| a.cmp(b));
+            // iterate through combined layer
+            // combined_layer.iter().for_each(|(_, node)| {
+            //     std::println!("layer {} {:?}", layer_index, node);
+            // });
+            // std::println!("layer {} - {:?}", layer_index, &combined_layer);
             self.upsert_layer(layer_index, combined_layer);
         }
     }

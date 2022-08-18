@@ -1,20 +1,21 @@
 use crate::{prelude::*, Hasher};
-use sha2::{digest::FixedOutput, Digest, Sha256};
+use sha3::{digest::FixedOutput, Digest, Keccak256};
 
-/// Sha256 implementation of the [`Hasher`] trait.
+/// Keccak256 implementation of the [`Hasher`] trait.
 ///
 /// # Examples
 ///
 /// ```
-/// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
+/// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Keccak256, Hasher, Error, utils, utils::properties::TreeProperties};
 /// # use std::convert::TryFrom;
 /// #
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+///
 ///  let tree_properties = TreeProperties {
-///    sorted_pair_enabled: false,
+///    sorted_pair_enabled: true,
 ///  };
-///  let tree = MerkleTree::<Sha256>::new(tree_properties);
-///  let other_tree: MerkleTree<Sha256> = MerkleTree::new(tree_properties);
+///  let tree = MerkleTree::<Keccak256>::new(tree_properties);
+///  let other_tree: MerkleTree<Keccak256> = MerkleTree::new(tree_properties);
 ///
 /// let proof_bytes: Vec<u8> = vec![
 ///     46, 125, 44, 3, 169, 80, 122, 226, 101, 236, 245, 181, 53, 104, 133, 165, 51, 147, 162,
@@ -25,28 +26,28 @@ use sha2::{digest::FixedOutput, Digest, Sha256};
 ///     249, 74,
 /// ];
 ///
-/// let proof_result = MerkleProof::<Sha256>::from_bytes(&proof_bytes);
+/// let proof_result = MerkleProof::<Keccak256>::from_bytes(&proof_bytes);
 /// # Ok(())
 /// # }
 /// ```
 ///
 /// [`Hasher`]: crate::Hasher
 #[derive(Clone)]
-pub struct Sha256Algorithm {}
+pub struct Keccak256Algorithm {}
 
-impl Sha256Algorithm {
+impl Keccak256Algorithm {
     pub fn hash(data: &[u8]) -> [u8; 32] {
-        let mut hasher = Sha256::new();
+        let mut hasher = Keccak256::new();
 
         hasher.update(data);
         <[u8; 32]>::from(hasher.finalize_fixed())
     }
 }
 
-impl Hasher for Sha256Algorithm {
+impl Hasher for Keccak256Algorithm {
     type Hash = [u8; 32];
 
     fn hash(data: &[u8]) -> [u8; 32] {
-        Sha256Algorithm::hash(data)
+        Keccak256Algorithm::hash(data)
     }
 }

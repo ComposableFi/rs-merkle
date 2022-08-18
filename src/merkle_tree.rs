@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use crate::{partial_tree::PartialTree, utils, utils::indices, Hasher, MerkleProof};
+use crate::{
+    partial_tree::PartialTree, utils, utils::indices, utils::properties::TreeProperties, Hasher,
+    MerkleProof,
+};
 
 /// [`MerkleTree`] is a Merkle Tree that is well suited for both basic and advanced usage.
 ///
@@ -14,11 +17,14 @@ pub struct MerkleTree<T: Hasher> {
     current_working_tree: PartialTree<T>,
     history: Vec<PartialTree<T>>,
     uncommitted_leaves: Vec<T::Hash>,
+    tree_properties: TreeProperties,
 }
 
 impl<T: Hasher> Default for MerkleTree<T> {
     fn default() -> Self {
-        Self::new()
+        Self::new(TreeProperties {
+            sorted_pair_enabled: false,
+        })
     }
 }
 
@@ -28,17 +34,22 @@ impl<T: Hasher> MerkleTree<T> {
     /// # Examples
     ///
     /// ```
-    /// use rs_merkle::{MerkleTree, algorithms::Sha256};
+    /// use rs_merkle::{MerkleTree, algorithms::Sha256, utils::properties::TreeProperties};
     ///
-    /// let merkle_tree: MerkleTree<Sha256> = MerkleTree::new();
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
     ///
-    /// let another_merkle_tree = MerkleTree::<Sha256>::new();
+    /// let merkle_tree: MerkleTree<Sha256> = MerkleTree::new(tree_properties);
+    ///
+    /// let another_merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// ```
-    pub fn new() -> Self {
+    pub fn new(tree_properties: TreeProperties) -> Self {
         Self {
             current_working_tree: PartialTree::new(),
             history: Vec::new(),
             uncommitted_leaves: Vec::new(),
+            tree_properties,
         }
     }
 
@@ -47,20 +58,23 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// # Ok(())
     /// # }
-    pub fn from_leaves(leaves: &[T::Hash]) -> Self {
-        let mut tree = Self::new();
+    pub fn from_leaves(leaves: &[T::Hash], tree_properties: TreeProperties) -> Self {
+        let mut tree = Self::new(tree_properties);
 
         tree.append(leaves.to_vec().as_mut());
         tree.commit();
@@ -73,16 +87,19 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     ///
     /// let indices_to_prove = vec![0, 1];
     /// let leaves_to_prove = leaves.get(0..2).ok_or("can't get leaves to prove")?;
@@ -90,7 +107,7 @@ impl<T: Hasher> MerkleTree<T> {
     /// let proof = merkle_tree.proof(&indices_to_prove);
     /// let root = merkle_tree.root().ok_or("couldn't get the merkle root")?;
     ///
-    /// assert!(proof.verify(root, &indices_to_prove, leaves_to_prove, leaves.len()));
+    /// assert!(proof.verify(root, &indices_to_prove, leaves_to_prove, leaves.len(),tree_properties));
     /// # Ok(())
     /// # }
     /// ```
@@ -104,16 +121,19 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// let root = merkle_tree.root_hex().ok_or("couldn't get the merkle root")?;
     ///
     /// assert_eq!(
@@ -172,15 +192,18 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves: Vec<[u8; 32]> = ["a", "b", "c", "d", "e", "f"]
     ///     .iter()
     ///     .map(|x| Sha256::hash(x.as_bytes()))
     ///     .collect();
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// let indices_to_prove = vec![3, 4];
     /// let leaves_to_prove = leaves.get(3..5).ok_or("can't get leaves to prove")?;
     /// let merkle_proof = merkle_tree.proof(&indices_to_prove);
@@ -191,7 +214,7 @@ impl<T: Hasher> MerkleTree<T> {
     /// // Parse proof back on the client
     /// let proof = MerkleProof::<Sha256>::try_from(proof_bytes)?;
     ///
-    /// assert!(proof.verify(merkle_root, &indices_to_prove, leaves_to_prove, leaves.len()));
+    /// assert!(proof.verify(merkle_root, &indices_to_prove, leaves_to_prove, leaves.len(),tree_properties));
     /// # Ok(())
     /// # }
     /// ```
@@ -209,10 +232,13 @@ impl<T: Hasher> MerkleTree<T> {
     /// Get the root after an insert:
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// merkle_tree.insert(Sha256::hash("a".as_bytes()));
     ///
     /// assert_eq!(merkle_tree.root(), None);
@@ -229,10 +255,13 @@ impl<T: Hasher> MerkleTree<T> {
     /// Inserts also can be chained with [`MerkleTree::commit`] for convenience:
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// merkle_tree
     ///     .insert(Sha256::hash("a".as_bytes()))
     ///     .commit();
@@ -256,10 +285,13 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -288,10 +320,13 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -324,9 +359,12 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     ///
     /// merkle_tree.insert(Sha256::hash("a".as_bytes())).commit();
     /// assert_eq!(
@@ -378,10 +416,13 @@ impl<T: Hasher> MerkleTree<T> {
     /// ### Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///    sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -415,10 +456,13 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut merkle_tree = MerkleTree::<Sha256>::new();
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
+    /// let mut merkle_tree = MerkleTree::<Sha256>::new(tree_properties);
     /// let mut leaves = vec![
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
@@ -449,16 +493,19 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils, utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// assert_eq!(merkle_tree.depth(), 2);
     /// # Ok(())
     /// # }
@@ -472,16 +519,19 @@ impl<T: Hasher> MerkleTree<T> {
     /// ### Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// assert_eq!(merkle_tree.leaves(), Some(leaves.to_vec()));
     /// # Ok(())
     /// # }
@@ -495,16 +545,19 @@ impl<T: Hasher> MerkleTree<T> {
     /// ## Examples
     ///
     /// ```
-    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils};
+    /// # use rs_merkle::{MerkleTree, MerkleProof, algorithms::Sha256, Hasher, Error, utils,utils::properties::TreeProperties};
     /// # use std::convert::TryFrom;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tree_properties = TreeProperties {
+    ///     sorted_pair_enabled: false,
+    /// };
     /// let leaves = [
     ///     Sha256::hash("a".as_bytes()),
     ///     Sha256::hash("b".as_bytes()),
     ///     Sha256::hash("c".as_bytes()),
     /// ];
     ///
-    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+    /// let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves,tree_properties);
     /// assert_eq!(merkle_tree.leaves_len(), 3);
     /// # Ok(())
     /// # }
@@ -523,7 +576,7 @@ impl<T: Hasher> MerkleTree<T> {
 
     /// Returns the whole tree, where the first layer is leaves and
     /// consequent layers are nodes.
-    fn layers(&self) -> Vec<Vec<T::Hash>> {
+    pub fn layers(&self) -> Vec<Vec<T::Hash>> {
         self.current_working_tree.layer_nodes()
     }
 
@@ -566,8 +619,12 @@ impl<T: Hasher> MerkleTree<T> {
             }
             None => partial_tree_tuples.push(shadow_node_tuples),
         }
-
         // Building a partial tree with the changes that would be needed to the working tree
-        PartialTree::<T>::build(partial_tree_tuples, uncommitted_tree_depth).ok()
+        PartialTree::<T>::build(
+            partial_tree_tuples,
+            uncommitted_tree_depth,
+            self.tree_properties,
+        )
+        .ok()
     }
 }
